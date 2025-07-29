@@ -3,6 +3,7 @@ import uuid from 'react-uuid';
 import Sidebar from './components/Sidebar';
 import Main from './components/Main';
 import './App.css';
+import LZString from 'lz-string';
 
 function App() {
   const [notes, setNotes] = useState([]);
@@ -12,14 +13,14 @@ function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const data = params.get('data');
-
+  
     if (data) {
       try {
-        const decoded = JSON.parse(decodeURIComponent(data));
+        const decoded = JSON.parse(LZString.decompressFromEncodedURIComponent(data));
         setNotes(decoded);
         localStorage.setItem('notes', JSON.stringify(decoded));
       } catch (e) {
-        console.error('Invalid note data in URL');
+        console.error('Invalid or corrupt note data in URL');
       }
     } else {
       const local = localStorage.getItem('notes');
@@ -28,7 +29,7 @@ function App() {
       }
     }
   }, []);
-
+  
   // Save notes to localStorage when updated
   useEffect(() => {
     localStorage.setItem('notes', JSON.stringify(notes));
@@ -61,8 +62,8 @@ function App() {
 
   // 📤 Export notes into a shareable URL
   const onExportNotes = () => {
-    const encoded = encodeURIComponent(JSON.stringify(notes));
-    const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+    const compressed = LZString.compressToEncodedURIComponent(JSON.stringify(notes));
+    const url = `${window.location.origin}${window.location.pathname}?data=${compressed}`;
     navigator.clipboard.writeText(url);
     alert('Sharable link copied to clipboard!');
   };
