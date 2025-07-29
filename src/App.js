@@ -4,15 +4,32 @@ import Sidebar from './components/Sidebar';
 import Main from './components/Main';
 import './App.css';
 
-
 function App() {
-
-  const [notes, setNotes] = useState(
-    localStorage.notes ? JSON.parse(localStorage.notes) : []
-  );
-
+  const [notes, setNotes] = useState([]);
   const [activeNote, setActiveNote] = useState(false);
 
+  // Load notes from localStorage or from URL param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const data = params.get('data');
+
+    if (data) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(data));
+        setNotes(decoded);
+        localStorage.setItem('notes', JSON.stringify(decoded));
+      } catch (e) {
+        console.error('Invalid note data in URL');
+      }
+    } else {
+      const local = localStorage.getItem('notes');
+      if (local) {
+        setNotes(JSON.parse(local));
+      }
+    }
+  }, []);
+
+  // Save notes to localStorage when updated
   useEffect(() => {
     localStorage.setItem('notes', JSON.stringify(notes));
   }, [notes]);
@@ -24,7 +41,6 @@ function App() {
       body: '',
       lastModified: Date.now(),
     };
-
     setNotes([newNote, ...notes]);
   };
 
@@ -37,30 +53,38 @@ function App() {
   };
 
   const onUpdateNote = (updatedNote) => {
-    const updatedNotesArray = notes.map((note) => {
-      if(note.id === activeNote) {
-        return updatedNote;
-      }
-
-      return note;
-    });
-
+    const updatedNotesArray = notes.map((note) =>
+      note.id === activeNote ? updatedNote : note
+    );
     setNotes(updatedNotesArray);
+  };
+
+  // 📤 Export notes into a shareable URL
+  const onExportNotes = () => {
+    const encoded = encodeURIComponent(JSON.stringify(notes));
+    const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+    navigator.clipboard.writeText(url);
+    alert('Sharable link copied to clipboard!');
   };
 
   return (
     <div className='App'>
       <Sidebar
         notes={notes}
-        onAddNote = {onAddNote}
-        onDeleteNote = {onDeleteNote}
-        activeNote = {activeNote}
-        setActiveNote = {setActiveNote}
+        onAddNote={onAddNote}
+        onDeleteNote={onDeleteNote}
+        activeNote={activeNote}
+        setActiveNote={setActiveNote}
       />
       <Main
-        activeNote = {getActiveNote()}
-        onUpdateNote = {onUpdateNote}
+        activeNote={getActiveNote()}
+        onUpdateNote={onUpdateNote}
       />
+      <div style={{ position: 'fixed', bottom: 10, right: 10 }}>
+        <button onClick={onExportNotes} style={{ padding: '10px 20px' }}>
+          Export Notes
+        </button>
+      </div>
     </div>
   );
 }
