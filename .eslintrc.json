@@ -41,15 +41,9 @@
       }
     ],
     "no-template-curly-in-string": "error",
-    "no-trailing-spaces": "warn",
+    "no-trailing-spaces": "off",
     "no-undefined": "off",
-    "quotes": [
-      "warn",
-      "single",
-      {
-        "allowTemplateLiterals": true
-      }
-    ],
+    "quotes": "off",
     "semi": "error"
   }
 }
