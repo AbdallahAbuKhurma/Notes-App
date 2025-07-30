@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import uuid from "react-uuid";
 import Sidebar from "./components/Sidebar";
 import Main from "./components/Main";
-import "./App.css";
 import LZString from "lz-string";
+import CryptoJS from "crypto-js";
+import "./App.css";
 
 function App() {
   const [notes, setNotes] = useState([]);
@@ -12,23 +13,25 @@ function App() {
   // Load notes from localStorage or from URL param
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const data = params.get("data");
+    const id = params.get("id");
+    const key = params.get("key");
 
-    if (data) {
-      try {
-        const decoded = JSON.parse(
-          LZString.decompressFromEncodedURIComponent(data)
-        );
-        setNotes(decoded);
-        localStorage.setItem("notes", JSON.stringify(decoded));
-      } catch (e) {
-        console.error("Invalid or corrupt note data in URL");
-      }
+    if (id && key) {
+      fetch(`https://api.paste.gg/v1/pastes/${id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          const encrypted = data.result.files[0].content.value;
+          const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(
+            CryptoJS.enc.Utf8
+          );
+          const parsed = JSON.parse(decrypted);
+          setNotes(parsed);
+          localStorage.setItem("notes", JSON.stringify(parsed));
+        })
+        .catch((err) => console.error("Decryption or fetch failed", err));
     } else {
       const local = localStorage.getItem("notes");
-      if (local) {
-        setNotes(JSON.parse(local));
-      }
+      if (local) setNotes(JSON.parse(local));
     }
   }, []);
 
@@ -63,13 +66,35 @@ function App() {
   };
 
   // 📤 Export notes into a shareable URL
-  const onExportNotes = () => {
-    const compressed = LZString.compressToEncodedURIComponent(
-      JSON.stringify(notes)
-    );
-    const url = `${window.location.origin}${window.location.pathname}?data=${compressed}`;
-    navigator.clipboard.writeText(url);
-    alert("Sharable link copied to clipboard!");
+  const onExportNotes = async () => {
+    const key = CryptoJS.lib.WordArray.random(16).toString(); // 128-bit random key
+    const encrypted = CryptoJS.AES.encrypt(
+      JSON.stringify(notes),
+      key
+    ).toString();
+
+    const res = await fetch("https://api.paste.gg/v1/pastes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Encrypted note",
+        files: [
+          {
+            name: "note.enc",
+            content: {
+              format: "text",
+              value: encrypted,
+            },
+          },
+        ],
+      }),
+    });
+
+    const json = await res.json();
+    const pasteId = json.result.id;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?id=${pasteId}&key=${key}`;
+    navigator.clipboard.writeText(shareUrl);
+    alert("Encrypted link copied to clipboard!");
   };
 
   return (
