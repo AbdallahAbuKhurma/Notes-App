@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import uuid from "react-uuid";
 import Sidebar from "./components/Sidebar";
 import Main from "./components/Main";
-import LZString from "lz-string";
+// import LZString from "lz-string";
 import CryptoJS from "crypto-js";
 import "./App.css";
 
