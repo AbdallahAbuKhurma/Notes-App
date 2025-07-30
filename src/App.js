@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import uuid from "react-uuid";
 import Sidebar from "./components/Sidebar";
 import Main from "./components/Main";
-// import LZString from "lz-string";
 import CryptoJS from "crypto-js";
 import "./App.css";
 
@@ -17,10 +16,10 @@ function App() {
     const key = params.get("key");
 
     if (id && key) {
-      fetch(`https://api.paste.gg/v1/pastes/${id}`)
+      fetch(`https://jsonblob.com/api/jsonBlob/${id}`)
         .then((res) => res.json())
         .then((data) => {
-          const encrypted = data.result.files[0].content.value;
+          const encrypted = data.data;
           const decrypted = CryptoJS.AES.decrypt(encrypted, key).toString(
             CryptoJS.enc.Utf8
           );
@@ -28,7 +27,9 @@ function App() {
           setNotes(parsed);
           localStorage.setItem("notes", JSON.stringify(parsed));
         })
-        .catch((err) => console.error("Decryption or fetch failed", err));
+        .catch((err) =>
+          console.error("Failed to load or decrypt shared note", err)
+        );
     } else {
       const local = localStorage.getItem("notes");
       if (local) setNotes(JSON.parse(local));
@@ -67,34 +68,24 @@ function App() {
 
   // 📤 Export notes into a shareable URL
   const onExportNotes = async () => {
-    const key = CryptoJS.lib.WordArray.random(16).toString(); // 128-bit random key
+    const key = CryptoJS.lib.WordArray.random(16).toString(); // 128-bit key
     const encrypted = CryptoJS.AES.encrypt(
       JSON.stringify(notes),
       key
     ).toString();
 
-    const res = await fetch("https://api.paste.gg/v1/pastes", {
+    const res = await fetch("https://jsonblob.com/api/jsonBlob", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: "Encrypted note",
-        files: [
-          {
-            name: "note.enc",
-            content: {
-              format: "text",
-              value: encrypted,
-            },
-          },
-        ],
-      }),
+      body: JSON.stringify({ data: encrypted }),
     });
 
-    const json = await res.json();
-    const pasteId = json.result.id;
-    const shareUrl = `${window.location.origin}${window.location.pathname}?id=${pasteId}&key=${key}`;
+    const location = res.headers.get("Location"); // e.g. https://jsonblob.com/api/jsonBlob/UUID
+    const id = location.split("/").pop();
+    const shareUrl = `${window.location.origin}${window.location.pathname}?id=${id}&key=${key}`;
+
     navigator.clipboard.writeText(shareUrl);
-    alert("Encrypted link copied to clipboard!");
+    alert("🔐 Encrypted link copied to clipboard!");
   };
 
   return (
